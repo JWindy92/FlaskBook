@@ -8,6 +8,8 @@ from wtforms.validators import DataRequired
 import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_mail import Mail, Message
+from threading import Thread
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -15,10 +17,20 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['FLASKY_MAIL_SUBJECT_PREFIX'] = '[Flasky Email]'
+app.config['FLASKY_MAIL_SENDER'] = '' ## IDK WHAT THIS WAS FOR, USING 'MAIL_USERNAME'
+app.config['FLASKY_ADMIN'] = os.environ.get('FLASKY_ADMIN')
 bootstrap = Bootstrap(app)
 moment = Moment(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+mail = Mail(app)
+from threading import Thread
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -30,6 +42,8 @@ def index():
             db.session.add(user)
             db.session.commit()
             session['known'] = False
+            if app.config['FLASKY_ADMIN']:
+                send_email(app.config['FLASKY_ADMIN'], 'New User', 'mail/new_user', user=user)
         else:
             session['known'] = True
         session['name'] = form.name.data
@@ -84,6 +98,18 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+#### EMAIL INTEGRATION ####
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg)
+
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['FLASKY_MAIL_SUBJECT_PREFIX'] + subject, sender=app.config['MAIL_USERNAME'], recipients=[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.html = render_template(template + '.html', **kwargs)
+    thr = Thread(target=send_async_email, args=[app, msg])
+    thr.start()
+    return thr
 
 #### PYTHON SHELL CONFIGURATION ####
 
