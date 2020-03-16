@@ -1,19 +1,31 @@
 {% extends "base.html" %}
 {% import "bootstrap/wtf.html" as wtf %}
+{% import "_macros.html" as macros %}
 
 {% block page_content %}
-        <div class="page-header">
-                <h1>
-                Hello,
-                {% if current_user.is_authenticated %}
-                        {{ current_user.username }}
-                {% else %}
-                        Stranger
-                {% endif %}!
-                </h1>
-        </div>
+	<div class="page-header">
+		<h1>
+		Hello,
+		{% if current_user.is_authenticated %}
+			{{ current_user.username }}
+		{% else %}
+			Stranger
+		{% endif %}!
+		</h1>
+	</div>
 
-        <p>The local date and time is {{ moment(current_time).format('LLL') }}.</p>
-        <p>That was {{ moment(current_time).fromNow(refresh=True) }}</p>
-        <a href="/google">Go To Google</a>
+	<div>
+		{% if current_user.can(Permission.WRITE) %}
+		{{ wtf.quick_form(form) }}
+		{% include '_posts.html' %}
+		<div class="pagination">
+			{{ macros.pagination_widget(pagination, '.index') }}
+		</div>
+		{% endif %}
+	</div>
+
+
+	<p>The local date and time is {{ moment(current_time).format('LLL') }}.</p>
+	<p>That was {{ moment(current_time).fromNow(refresh=True) }}</p>
+	<a href="/google">Go To Google</a>
 {% endblock %}
